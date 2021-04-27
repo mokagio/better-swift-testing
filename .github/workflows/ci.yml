@@ -1,0 +1,27 @@
+on: push
+
+jobs:
+  unit-tests:
+    runs-on: macos-latest
+    steps:
+      - name: "Print current version of Xcode"
+        run: xcodebuild -version
+      - uses: actions/checkout@v2
+      - name: "Install xcbeautify"
+        run: brew install xcbeautify
+      - name: "Install Tuist"
+        run: |
+          # There's no `brew install` and the default install
+          # script currently requires sudo, more at
+          # https://github.com/tuist/tuist/discussions/2802
+          curl -L -o ./tuist.zip https://github.com/tuist/tuist/releases/download/$(cat .tuist-version)/tuist.zip
+          unzip ./tuist.zip -d .tuist-bin
+      - name: "Generate project with Tuist"
+        run: .tuist-bin/tuist generate
+      - name: "Test"
+        run: |
+          xcodebuild clean test \
+            -workspace 'BananaApp.xcworkspace' \
+            -scheme 'BananaAppTests' \
+            -destination 'platform=iOS Simulator,name=iPhone 12,OS=latest' \
+            | xcbeautify
