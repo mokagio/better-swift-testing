@@ -7,7 +7,9 @@ jobs:
       - name: "Print current version of Xcode"
         run: xcodebuild -version
       - uses: actions/checkout@v2
-      - name: "Setup Tuist"
+      - name: "Install xcbeautify"
+        run: brew install xcbeautify
+      - name: "Install Tuist"
         run: |
           # There's no `brew install` and the default install
           # script currently requires sudo, more at
@@ -21,4 +23,5 @@ jobs:
           xcodebuild clean test \
             -workspace 'BananaApp.xcworkspace' \
             -scheme 'BananaAppTests' \
-            -destination 'platform=iOS Simulator,name=iPhone 12,OS=latest'
+            -destination 'platform=iOS Simulator,name=iPhone 12,OS=latest' \
+            | xcbeautify
