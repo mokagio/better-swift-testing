@@ -20,4 +20,5 @@ jobs:
         run: |
           xcodebuild clean test \
             -workspace 'BananaApp.xcworkspace' \
-            -scheme 'BananaAppTests'
+            -scheme 'BananaAppTests' \
+            -destination 'platform=iOS Simulator,name=iPhone 12,OS=latest'
