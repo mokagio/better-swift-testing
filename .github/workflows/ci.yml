@@ -6,6 +6,7 @@ jobs:
     steps:
       - name: "Print current version of Xcode"
         run: xcodebuild -version
+      - uses: actions/checkout@v2
       - name: "Setup Tuist"
         run: |
           # There's no `brew install` and the default install
