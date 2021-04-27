@@ -1,7 +1,7 @@
 on: push
 
 jobs:
-  macos-xcode:
+  unit-tests:
     runs-on: macos-latest
     steps:
       - name: "Print current version of Xcode"
