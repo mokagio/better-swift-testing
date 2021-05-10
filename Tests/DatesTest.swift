@@ -36,6 +36,39 @@ class DatesTests: XCTestCase {
         let promoCode = PromoCode(createdAt: createdDate, validityInterval: validityInterval)
         XCTAssertTrue(promoCode.isExpired(at: Date(timeInterval: 61, since: createdDate)))
     }
+
+    // MARK: - Different example
+
+    func testExpiredProduct() {
+        let product = Product(expirationYear: 2000, month: 1, day: 1)
+        XCTAssertTrue(product.expired)
+    }
+
+    // This is just an example of bad use of dates.
+    //
+    // The test passed when I wrote it, but will fail if run after the date.
+    //
+    // You could compensate by using a date in the very distant future, but the code is
+    // nevertheless flawed: you have no control over how long the code will be running for, there is
+    // always a bit of possibility that the time will come to pass and the test start failing.
+    func testValidProduct() throws {
+        try XCTSkipIf(true, "Skipping test. This is just an example of a test that will fail.")
+
+        let product = Product(expirationYear: 2021, month: 5, day: 12)
+        XCTAssertFalse(product.expired)
+    }
+
+    func testExpiredProduct_good() {
+        let product = Product(expirationYear: 2021, month: 1, day: 1)
+        XCTAssertTrue(product.isExpired(at: Date.with(year: 2021, month: 1, day: 2)))
+        XCTAssertTrue(product.isExpired(at: .distantFuture))
+    }
+
+    func testValidProduct_good() {
+        let product = Product(expirationYear: 2021, month: 1, day: 1)
+        XCTAssertFalse(product.isExpired(at: Date.with(year: 2020, month: 12, day: 31)))
+        XCTAssertFalse(product.isExpired(at: .distantPast))
+    }
 }
 
 struct PromoCode {
@@ -49,5 +82,27 @@ struct PromoCode {
 
     func isExpired(at date: Date = Date()) -> Bool {
         return date.timeIntervalSince(createdAt) > validityInterval
+    }
+}
+
+struct Product {
+
+    let expiryDate: Date
+
+    var expired: Bool { expiryDate.timeIntervalSinceNow < 0 }
+
+    init(expirationYear year: Int, month: Int, day: Int) {
+        self.expiryDate = DateComponents(calendar: .current, year: year, month: month, day: day).date! }
+
+    func isExpired(at date: Date = Date()) -> Bool {
+        expiryDate.timeIntervalSince(date) < 0
+    }
+}
+
+
+extension Date {
+
+    static func with(calendar: Calendar = .current, year: Int, month: Int, day: Int) -> Date {
+        DateComponents(calendar: calendar, year: year, month: month, day: day).date!
     }
 }
