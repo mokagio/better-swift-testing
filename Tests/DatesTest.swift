@@ -1,108 +1,67 @@
 import XCTest
 
-class DatesTests: XCTestCase {
+class DatesDecoupleFromSystemClockExamples: XCTestCase {
 
-    func testNewPromoCodeNotExpired_bad() {
-        let promoCode = PromoCode(createdAt: Date())
-        XCTAssertFalse(promoCode.isExpired_bad())
+    struct PromoCode {
+        let createdAt: Date
+        // TODO: a further improvement in test quality would be to make this injectable, too.
+        // That way, the tests could focus on the comparison behavior without being constrained by
+        // the value of expiration interval. If the interval changes in production, the tests will
+        // still pass.
+        private let expiry: TimeInterval = 365 * 24 * 60 * 60
+
+        func isExpired(at referenceDate: Date = Date()) -> Bool {
+            return referenceDate.timeIntervalSince(createdAt) > expiry
+        }
     }
 
-    func testOldPromoCodeExpired_bad() {
-        let promoCode = PromoCode(createdAt: Date().addingTimeInterval(-(15 * 24 * 60 * 60)))
-        XCTAssertTrue(promoCode.isExpired_bad())
+    func testIsExpiredFalseBeforeOneYear_bad() {
+        let promoCode = PromoCode(createdAt: Date.with(year: 2020, month: 6, day: 4))
+        XCTAssertFalse(promoCode.isExpired())
     }
 
-    // Notice that making the validity interval explicit allows for better test names, too.
-    // The lesson here is more that this approach is clearer rather than its tests names are
-    // "better", but I guess that's the point no? If you can write a clear test, then the code is
-    // clear too...
-    func testPromoCodeCreatedWithinValidityIsNotExpired() {
-        let validityInterval: TimeInterval = 60
-        let createdDate = Date()
-        let promoCode = PromoCode(createdAt: createdDate, validityInterval: validityInterval)
-        XCTAssertFalse(promoCode.isExpired(at: Date(timeInterval: 59, since: createdDate)))
+    func testIsExpiredFalseAfterOneYear_bad() {
+        let promoCode = PromoCode(createdAt: Date.with(year: 2020, month: 1, day: 4))
+        XCTAssertTrue(promoCode.isExpired())
     }
 
-    func testPromoCodeCreatedAtValidityIsNotExpired() {
-        let validityInterval: TimeInterval = 60
-        let createdDate = Date()
-        let promoCode = PromoCode(createdAt: createdDate, validityInterval: validityInterval)
-        XCTAssertFalse(promoCode.isExpired(at: Date(timeInterval: 60, since: createdDate)))
+    func testIsExpiredFalseBeforeOneYear_good() {
+        let promoCode = PromoCode(createdAt: Date.with(year: 2020, month: 6, day: 4))
+        XCTAssertFalse(promoCode.isExpired(at: Date.with(year: 2021, month: 6, day: 3)))
     }
 
-    func testPromoCodeCreatedBeforeValidityIsExpired() {
-        let validityInterval: TimeInterval = 60
-        let createdDate = Date()
-        let promoCode = PromoCode(createdAt: createdDate, validityInterval: validityInterval)
-        XCTAssertTrue(promoCode.isExpired(at: Date(timeInterval: 61, since: createdDate)))
-    }
-
-    // MARK: - Different example
-
-    func testExpiredProduct() {
-        let product = Product(expirationYear: 2000, month: 1, day: 1)
-        XCTAssertTrue(product.expired)
-    }
-
-    // This is just an example of bad use of dates.
-    //
-    // The test passed when I wrote it, but will fail if run after the date.
-    //
-    // You could compensate by using a date in the very distant future, but the code is
-    // nevertheless flawed: you have no control over how long the code will be running for, there is
-    // always a bit of possibility that the time will come to pass and the test start failing.
-    func testValidProduct() throws {
-        try XCTSkipIf(true, "Skipping test. This is just an example of a test that will fail.")
-
-        let product = Product(expirationYear: 2021, month: 5, day: 12)
-        XCTAssertFalse(product.expired)
-    }
-
-    func testExpiredProduct_good() {
-        let product = Product(expirationYear: 2021, month: 1, day: 1)
-        XCTAssertTrue(product.isExpired(at: Date.with(year: 2021, month: 1, day: 2)))
-        XCTAssertTrue(product.isExpired(at: .distantFuture))
-    }
-
-    func testValidProduct_good() {
-        let product = Product(expirationYear: 2021, month: 1, day: 1)
-        XCTAssertFalse(product.isExpired(at: Date.with(year: 2020, month: 12, day: 31)))
-        XCTAssertFalse(product.isExpired(at: .distantPast))
+    func testIsExpiredFalseAfterOneYear_good() {
+        let promoCode = PromoCode(createdAt: Date.with(year: 2020, month: 1, day: 4))
+        XCTAssertTrue(promoCode.isExpired(at: Date.with(year: 2021, month: 1, day: 4)))
     }
 }
-
-struct PromoCode {
-
-    let createdAt: Date
-    private(set) var validityInterval: TimeInterval = 14 * 24 * 60 * 60
-
-    func isExpired_bad() -> Bool {
-        return Date().timeIntervalSince(createdAt) > TimeInterval(14 * 24 * 60 * 60)
-    }
-
-    func isExpired(at date: Date = Date()) -> Bool {
-        return date.timeIntervalSince(createdAt) > validityInterval
-    }
-}
-
-struct Product {
-
-    let expiryDate: Date
-
-    var expired: Bool { expiryDate.timeIntervalSinceNow < 0 }
-
-    init(expirationYear year: Int, month: Int, day: Int) {
-        self.expiryDate = DateComponents(calendar: .current, year: year, month: month, day: day).date! }
-
-    func isExpired(at date: Date = Date()) -> Bool {
-        expiryDate.timeIntervalSince(date) < 0
-    }
-}
-
 
 extension Date {
 
+    private static var formatter = DateFormatter.withFormat("YYYY-MM-DD")
+
     static func with(calendar: Calendar = .current, year: Int, month: Int, day: Int) -> Date {
+        // Because the `calendar` value is non-nil, it's safe to force unwrap the `date` value
         DateComponents(calendar: calendar, year: year, month: month, day: day).date!
     }
+
+    init?(_ string: String) {
+        guard let date = Date.formatter.date(from: string) else { return nil }
+        self = date
+    }
+}
+
+extension DateFormatter {
+
+    static func withFormat(_ format: String) -> DateFormatter {
+        let df = DateFormatter()
+        df.dateFormat = format
+        return df
+    }
+}
+
+extension TimeInterval {
+
+    static let week: TimeInterval = 7 * 24 * 60 * 60
+    static let oneWeek: TimeInterval = week
 }
